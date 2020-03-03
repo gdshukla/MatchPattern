@@ -5,10 +5,13 @@
  * Supported patterns:
  *  *: match previous character any number of time
  *  +: match previous character 1 or more times
- *  ?: match any character
+ *  ?: match previous character 0 or 1 time
+ *  .: match any character
  *  {min-max}: ignore atleast min to max no of characters
  *  (a|b|c): match one character with a or b or c
  *
+ * As explained here: https://www.clamav.net/documents/body-based-signature-content-format
+ *  and https://bugzilla.clamav.net/show_bug.cgi?id=776
  */
 
 #include <stdio.h>
@@ -99,6 +102,7 @@ static size_t getPatternSize(const char *pat)
             switch (ch)
             {
             case '?':
+                pIndex++;   // ?? means 1 byte so skip next ?
             case '*':
             case '+':
             case '.':
@@ -226,6 +230,7 @@ static patType_t *processPattern(const char *pat, size_t *patSize)
             {
             case '?':
             {
+                pIndex++;   // ?? means 1 byte so skip next ?
                 pats[pTypeIndex].type = QUESTION;
                 pats[pTypeIndex].letter = ch;
             }
@@ -303,6 +308,9 @@ void printPattern(patType_t *pat, size_t size)
         {
         case BRACE:
             printf("{%zd-%zd}", pat[i].minmax.min, pat[i].minmax.max);
+            break;
+        case QUESTION:
+            printf("??");
             break;
         case CHARCLASS:
             if (pat[i].charClass->size > PTR_SIZE)
@@ -556,7 +564,7 @@ int main()
 {
     tstamp ts;
     const char *patX = "4a53????41414141";
-    const char *strX = "sd,mfns.d,mfns.ad,mfnas.,dmfnasd,.mfnas.,sadmnfas.d,mfnas.d,mfnJSabcdAAAA";
+    const char *strX = "JSabAAAA";
     const char *pat1 = "646f63756d656e742e777269746528273c494652414d45205352433d22687474703a2f2f{7-15}2f6c696e6b2e68746d6c22";
     const char *str1 = "abcdefghdocument.write(\'<IFRAME SRC=\"http://abcdefg/link/link.html\"abcd";
     const char *pat2 = "6869.6a*6b6c6d6e6f707172";
@@ -564,8 +572,8 @@ int main()
     const char *pat3 = "646174613d606d732d6974733a6d68746d6c3a66696c653a2f2f(63|64|65|66|67|68)3a5c";
     const char *str3 = "123456789data=`ms-its:mhtml:file://c:\\";
     size_t patSize = 0;
-    const char *pat = pat3;
-    const char *str = str3;
+    const char *pat = patX;
+    const char *str = strX;
     ts.start();
     patType_t *pats = processPattern(pat, &patSize);
     ts.stop();
